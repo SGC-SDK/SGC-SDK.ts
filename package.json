@@ -1,5 +1,5 @@
 {
-  "name": "discordjs-sgc",
+  "name": "sgc-sdk.ts",
   "version": "1.0.0",
   "description": "Super Global Chatのパッケージ。",
   "main": "index.js",
