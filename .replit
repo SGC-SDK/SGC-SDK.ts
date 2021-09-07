@@ -1,0 +1,1 @@
+run="npx tsc index.ts && npx node index.js"

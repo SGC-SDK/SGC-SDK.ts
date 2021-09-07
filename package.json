@@ -1,0 +1,21 @@
+{
+  "name": "discordjs-sgc",
+  "version": "1.0.0",
+  "description": "Super Global Chatのパッケージ。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "super-global-chat"
+  ],
+  "author": "suzuneu",
+  "license": "ISC",
+  "devDependencies": {
+    "node": "^16.6.1",
+    "typescript": "^4.4.2"
+  },
+  "dependencies": {
+    "discord.js": "^13.1.0"
+  }
+}
