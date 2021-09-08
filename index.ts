@@ -58,6 +58,10 @@ interface SGCDatav1 extends BaseSGCData {
   attachmentsUrl?: URL[]
 }
 
+interface SGCDatav2 extends BaseSGCData {
+  //do stuff
+}
+
 class SGCClient {
   private readonly channel_v1:TextBasedChannels; 
   private readonly channel_v2:TextBasedChannels; 
