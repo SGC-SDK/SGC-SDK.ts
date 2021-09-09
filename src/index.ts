@@ -10,8 +10,9 @@ import {
   WebhookMessageOptions,
   MessageOptions,
   Collection,
-  TextBasedChannelFields,
-  EmojiResolvable
+  EmojiIdentifierResolvable,
+  Webhook,
+  BaseGuildTextChannel,
 } from "discord.js";
 
 class SGCError extends Error {
@@ -25,9 +26,19 @@ interface SGCClientOptions {
   channel_v1: Snowflake,
   channel_v2: Snowflake,
   isWebhook: boolean,
-  messageData: MessageOptions | MessagePayload | WebhookMessageOptions
+  messageData: Function,
+  identifier: string
 }
 
+interface ThisOptions {
+  channel_v1: BaseGuildTextChannel,
+  channel_v2: BaseGuildTextChannel,
+  client:Client,
+  isWebhook: boolean,
+  messageData: Function,
+  identifier: string
+}
+/* MessageOptions | MessagePayload | WebhookMessageOptions */
 type SGCDataType = "message" | "delete" | "edit" | "empty"
 
 interface BaseSGCData {
@@ -49,7 +60,7 @@ interface SGCDatav1 extends BaseSGCData {
   messageId?: string,
   content: string,
   reference?: Snowflake,
-  attachmentsUrl?: URL[] | string[]
+  attachmentsUrl?: string[]
 }
 interface SGCDatav2 extends BaseSGCData {
   //do stuff
@@ -68,11 +79,17 @@ interface SGCDatav2Empty extends SGCDatav2 {
 
 }
 
+function SGCWarn(name:string, message:string):void {
+  console.warn(`SGCWarning: [${name.toUpperCase()}] ${message}`);
+}
+
 class SGCClient {
-  private readonly channel_v1:TextBasedChannels; 
-  private readonly channel_v2:TextBasedChannels; 
-  private readonly isWebhook:boolean;
-  private readonly messageData:MessageOptions | MessagePayload | WebhookMessageOptions
+  public readonly channel_v1:BaseGuildTextChannel; 
+  public readonly channel_v2:BaseGuildTextChannel
+  public readonly isWebhook:boolean;
+  public readonly messageData:Function
+  public readonly client:Client;
+  public readonly identifier:string
   /**
    * 
    * @param {Snowflake} channel_v1 Super Global Chat v1でしようするチャンネル。
@@ -81,16 +98,20 @@ class SGCClient {
    */
   constructor(client:Client, data:SGCClientOptions) {
     if (!client) throw new SGCError("client is not defined");
+    if (!client.user) throw new SGCError("clientuser is does not exist");
     const temp:Channel | undefined = client.channels.cache.get(data.channel_v1);
     if (!temp) throw new SGCError("channel_v1 channel not found");
-    if (!temp.isText()) throw new SGCError("channel_v1 channel is not a text channel")
+    if (!(temp instanceof BaseGuildTextChannel)) throw new SGCError("channel_v1 is not a text channel");
     this.channel_v1 = temp;
     const temp2:Channel | undefined = client.channels.cache.get(data.channel_v2);
-    if (!temp) throw new SGCError("channel_v1 channel not found");
-    if (!temp.isText()) throw new SGCError("channel_v1 channel is not a text channel")
-    this.channel_v2 = temp;
+    if (!temp2) throw new SGCError("channel_v2 channel not found");
+    if (!(temp2 instanceof BaseGuildTextChannel)) throw new SGCError("channel_v1 is not a text channel");
+    this.channel_v2 = temp2;
     this.isWebhook = data.isWebhook;
     this.messageData = data.messageData;
+    this.client = client;
+    if (!data.identifier) throw new SGCError("identifier is missing");
+    this.identifier = data.identifier;
   }
 
   /**
@@ -98,13 +119,51 @@ class SGCClient {
    * @param {Message} message メッセージ
    * @param {Collection<Snowflake, TextBasedChannels> | TextBasedChannels[]} sendChannel
    */
-  async sgcMessagehandler(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiResolvable, sentEmoji?:EmojiResolvable) {
-    if (!message.author.bot) return;
+  async sgcMessagehandler(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiIdentifierResolvable, sentEmoji?:EmojiIdentifierResolvable) {
+    if (!this.client.user) throw new SGCError("clientuser is does not exist");
+    if (!message.author.bot || message.author.id === this.client.user.id) return;
     if (message.channel !== this.channel_v1 && message.channel !== this.channel_v2) return;
     if (message.channel === this.channel_v1) {
       const data:SGCDatav1 = JSON.parse(message.content);
       if (data.type !== "message") return;
-      
+      if (sendingEmoji) await message.react(sendingEmoji);
+      async function awaitPromise(chs:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], th:ThisOptions):Promise<void> {
+        if (!th.client.user) throw new SGCError("clientuser is does not exist")
+        return new Promise((resolve, reject) => {
+          let promiseArray:any[] = [];
+          chs.forEach(async (ch:TextBasedChannels) => {
+            promiseArray.push((():Promise<void> => {
+              return new Promise(async (resol, rejec) => {
+                if (th.isWebhook) {
+                  if (ch.type !== "GUILD_TEXT") throw new SGCError("sendChannel type is not a TextChannel")
+                  const temp = ch.guild.members.cache.get(th.client.user!.id ?? "ahaha");
+                  if (!temp) throw new SGCError("bot is not a guild member");
+                  if (!ch.permissionsFor(temp).has("MANAGE_WEBHOOKS")) return SGCWarn("MISSING_WEBHOOK_PERMISSIONS", "channel webhook permission is missing.");
+                  const hooks:Collection<Snowflake, Webhook> = await ch.fetchWebhooks();
+                  let hook:Webhook | undefined = hooks.find((h:Webhook) => h.name === `${th.identifier}-sgc`);
+                  if (!hook) {
+                    hook = await ch.createWebhook(`${th.identifier}-sgc`);
+                    hook.send(th.messageData(data));
+                  } else {
+                    hook.send(th.messageData(data));
+                  }
+                } else {
+                  await ch.send(th.messageData(data));
+                }
+                resol();
+              });
+            })());
+          });
+          Promise.all(promiseArray).then(() => {
+            if (sendingEmoji) message.reactions.cache.find
+            (e => e.emoji === sendingEmoji)?.users.remove();
+            if (sentEmoji) message.react(sentEmoji);
+            resolve();
+          })
+        })
+      };
+      const kko:ThisOptions = this;
+      awaitPromise(sendChannel, kko);
     }
   }
 }
