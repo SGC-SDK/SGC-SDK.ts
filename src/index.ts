@@ -51,7 +51,6 @@ interface SGCDatav1 extends BaseSGCData {
   reference?: Snowflake,
   attachmentsUrl?: URL[] | string[]
 }
-
 interface SGCDatav2 extends BaseSGCData {
   //do stuff
 }
