@@ -14,12 +14,6 @@ import {
   EmojiResolvable
 } from "discord.js";
 
-let client:Client | undefined;
-
-function setup(cli:Client) {
-  client = cli;
-}
-
 class SGCError extends Error {
   constructor(message:string) {
     super(message);
@@ -55,11 +49,24 @@ interface SGCDatav1 extends BaseSGCData {
   messageId?: string,
   content: string,
   reference?: Snowflake,
-  attachmentsUrl?: URL[]
+  attachmentsUrl?: URL[] | string[]
 }
 
 interface SGCDatav2 extends BaseSGCData {
   //do stuff
+}
+
+interface SGCDatav2Edit extends SGCDatav2 {
+  messageId: Snowflake,
+  content: string
+}
+
+interface SGCDatav2Delete extends SGCDatav2 {
+  messageId: Snowflake
+}
+
+interface SGCDatav2Empty extends SGCDatav2 {
+
 }
 
 class SGCClient {
@@ -73,7 +80,7 @@ class SGCClient {
    * @param {Snowflake} channel_v2S uper Global Chat v2でしようするチャンネル。
    * @param {boolean} isWebhook 送信にウェブフックを使用するかどうか。
    */
-  constructor(data:SGCClientOptions) {
+  constructor(client:Client, data:SGCClientOptions) {
     if (!client) throw new SGCError("client is not defined");
     const temp:Channel | undefined = client.channels.cache.get(data.channel_v1);
     if (!temp) throw new SGCError("channel_v1 channel not found");
@@ -96,7 +103,7 @@ class SGCClient {
     if (!message.author.bot) return;
     if (message.channel !== this.channel_v1 && message.channel !== this.channel_v2) return;
     if (message.channel === this.channel_v1) {
-      const data:any = JSON.parse(message.content);
+      const data:SGCDatav1 = JSON.parse(message.content);
       if (data.type !== "message") return;
       
     }
@@ -107,5 +114,11 @@ export {
   SGCClient,
   SGCError,
   SGCClientOptions,
-  setup
+  SGCDatav1,
+  SGCDatav2,
+  SGCDataType,
+  SGCDatav2Delete,
+  SGCDatav2Edit,
+  SGCDatav2Empty,
+  BaseSGCData
 }

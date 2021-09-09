@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "lib": ["esnext", "dom"],
+    "lib": ["es2018"],
     "module": "commonjs",
     "moduleResolution": "node",
     "strict": true,
@@ -9,7 +9,10 @@
     "allowJs": true,
     "sourceMap": true,
     "inlineSources": true,
+    "esModuleInterop": true,
+    "outDir": "./dist/",
     "types": ["node"],
+    "declaration": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true
   }
