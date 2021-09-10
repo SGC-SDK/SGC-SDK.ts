@@ -33,6 +33,7 @@
     "webpack-cli": "^4.8.0"
   },
   "dependencies": {
-    "discord.js": "^13.1.0"
+    "discord.js": "^13.1.0",
+    "ws": "^8.2.2"
   }
 }

@@ -14,6 +14,7 @@ import {
   Webhook,
   BaseGuildTextChannel,
 } from "discord.js";
+import WebSocket from "ws";
 
 class SGCError extends Error {
   constructor(message:string) {
@@ -22,23 +23,6 @@ class SGCError extends Error {
   }
 }
 
-interface SGCClientOptions {
-  channel_v1: Snowflake,
-  channel_v2: Snowflake,
-  isWebhook: boolean,
-  messageData: Function,
-  identifier: string
-}
-
-interface ThisOptions {
-  channel_v1: BaseGuildTextChannel,
-  channel_v2: BaseGuildTextChannel,
-  client:Client,
-  isWebhook: boolean,
-  messageData: Function,
-  identifier: string
-}
-/* MessageOptions | MessagePayload | WebhookMessageOptions */
 type SGCDataType = "message" | "delete" | "edit" | "empty"
 
 interface BaseSGCData {
@@ -78,6 +62,27 @@ interface SGCDatav2Delete extends SGCDatav2 {
 interface SGCDatav2Empty extends SGCDatav2 {
 
 }
+
+type MessageDataOptions = (data:SGCDatav1) => MessageOptions | MessagePayload | WebhookMessageOptions;
+
+interface SGCClientOptions {
+  channel_v1: Snowflake,
+  channel_v2: Snowflake,
+  isWebhook: boolean,
+  messageData: MessageDataOptions,
+  identifier: string
+}
+
+interface ThisOptions {
+  channel_v1: BaseGuildTextChannel,
+  channel_v2: BaseGuildTextChannel,
+  client:Client,
+  isWebhook: boolean,
+  messageData: Function,
+  identifier: string
+}
+
+
 
 function SGCWarn(name:string, message:string):void {
   console.warn(`SGCWarning: [${name.toUpperCase()}] ${message}`);
@@ -119,7 +124,7 @@ class SGCClient {
    * @param {Message} message メッセージ
    * @param {Collection<Snowflake, TextBasedChannels> | TextBasedChannels[]} sendChannel
    */
-  async sgcMessagehandler(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiIdentifierResolvable, sentEmoji?:EmojiIdentifierResolvable) {
+  async messageHandler(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiIdentifierResolvable, sentEmoji?:EmojiIdentifierResolvable) {
     if (!this.client.user) throw new SGCError("clientuser is does not exist");
     if (!message.author.bot || message.author.id === this.client.user.id) return;
     if (message.channel !== this.channel_v1 && message.channel !== this.channel_v2) return;
@@ -166,6 +171,28 @@ class SGCClient {
       awaitPromise(sendChannel, kko);
     }
   }
+  async sentMessage(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiIdentifierResolvable, sentEmoji?:EmojiIdentifierResolvable) {
+    async function awaitPromise(chs:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], th:ThisOptions):Promise<void> {
+      return new Promise((resolve, reject) => {
+        let promiseArray:Promise<unknown>[] = [];
+        chs.forEach(async (ch:TextBasedChannels) => {
+          promiseArray.push((() => {
+            return new Promise(async (resol, rejec) => {
+              //await syori
+
+              resol(null);
+            })
+          })());
+        });
+        Promise.all(promiseArray).then(() => {
+          //owatt asyori
+
+          resolve();
+        })
+      })
+    }
+    awaitPromise(sendChannel, this);
+  }
 }
 
 export {
@@ -178,5 +205,7 @@ export {
   SGCDatav2Delete,
   SGCDatav2Edit,
   SGCDatav2Empty,
-  BaseSGCData
+  BaseSGCData,
+  SGCWarn,
+  MessageDataOptions
 }
