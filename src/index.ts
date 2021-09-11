@@ -63,7 +63,7 @@ interface SGCDatav2Empty extends SGCDatav2 {
 
 }
 
-type MessageDataOptions = (data:SGCDatav1) => MessageOptions | MessagePayload | WebhookMessageOptions;
+type MessageDataOptions = (data:SGCDatav1 | Message) => MessageOptions | MessagePayload | WebhookMessageOptions;
 
 interface SGCClientOptions {
   channel_v1: Snowflake,
@@ -88,6 +88,9 @@ function SGCWarn(name:string, message:string):void {
   console.warn(`SGCWarning: [${name.toUpperCase()}] ${message}`);
 }
 
+function sleep(ms:number):Promise<void> {
+  return new Promise(r => setTimeout(r, ms));
+}
 class SGCClient {
   public readonly channel_v1:BaseGuildTextChannel; 
   public readonly channel_v2:BaseGuildTextChannel
@@ -171,22 +174,42 @@ class SGCClient {
       awaitPromise(sendChannel, kko);
     }
   }
-  async sentMessage(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiIdentifierResolvable, sentEmoji?:EmojiIdentifierResolvable) {
+  async sendMessage(message:Message, sendChannel:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?:EmojiIdentifierResolvable, sentEmoji?:EmojiIdentifierResolvable) {
     async function awaitPromise(chs:Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], th:ThisOptions):Promise<void> {
+      if (sendingEmoji) await message.react(sendingEmoji);
       return new Promise((resolve, reject) => {
         let promiseArray:Promise<unknown>[] = [];
         chs.forEach(async (ch:TextBasedChannels) => {
           promiseArray.push((() => {
             return new Promise(async (resol, rejec) => {
-              //await syori
-
+              if (th.isWebhook) {
+                  if (ch.type !== "GUILD_TEXT") throw new SGCError("sendChannel type is not a TextChannel")
+                  const temp = ch.guild.members.cache.get(th.client.user!.id ?? "ahaha");
+                  if (!temp) throw new SGCError("bot is not a guild member");
+                  if (!ch.permissionsFor(temp).has("MANAGE_WEBHOOKS")) return SGCWarn("MISSING_WEBHOOK_PERMISSIONS", "channel webhook permission is missing.");
+                  const hooks:Collection<Snowflake, Webhook> = await ch.fetchWebhooks();
+                  let hook:Webhook | undefined = hooks.find((h:Webhook) => h.name === `${th.identifier}-sgc`);
+                  if (!hook) {
+                    hook = await ch.createWebhook(`${th.identifier}-sgc`);
+                    hook.send(th.messageData(message));
+                  } else {
+                    hook.send(th.messageData(message));
+                  }
+                } else {
+                  await ch.send(th.messageData(message));
+                }
               resol(null);
             })
           })());
         });
-        Promise.all(promiseArray).then(() => {
+        Promise.all(promiseArray).then(async () => {
           //owatt asyori
-
+          if (sendingEmoji) message.reactions.cache.find(x => x.emoji === sendingEmoji)?.users.remove();
+          if (sentEmoji) {
+            message.react(sentEmoji);
+            await sleep(3000);
+            message.reactions.cache.find(x => x.emoji === sentEmoji)?.users.remove();
+          }
           resolve();
         })
       })
