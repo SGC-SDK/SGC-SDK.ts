@@ -19,7 +19,7 @@ import WebSocket from "ws";
 class SGCError extends Error {
   constructor(message: string) {
     super(message);
-    this.name === "SGCError"
+    this.name = "SGCError"
   }
 }
 
