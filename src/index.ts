@@ -180,6 +180,7 @@ class SGCClient {
     }
   }
   async sendMessage(message: Message, sendChannel: Collection<Snowflake, TextBasedChannels> | TextBasedChannels[], sendingEmoji?: EmojiIdentifierResolvable, sentEmoji?: EmojiIdentifierResolvable) {
+    if (message.author.bot) return;
     const SGCWarn = (name: string, message: string): void => {
       if (this._noWarn) throw new SGCError(`SGCWarning: [${name.toUpperCase()}] ${message}`);
       console.warn(`SGCWarning: [${name.toUpperCase()}] ${message}`);
